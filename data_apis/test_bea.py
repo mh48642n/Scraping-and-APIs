@@ -50,12 +50,15 @@ class BEA:
         # Pulling all tables for the first time
         if(year == "All" and tables == None):
 
-            # constructs dictionary of tables and the url parameters this will collect the data objects for all tables listed in the JSON 
+            # iterates over parameters in json object to find the data needed
+            # assigns dataframes to a particular table name that will fit into the database
             return {k : self.build_url(json_object[k], year) for k in json_object.keys()}
-                
+
+        # Adding data to already existing tables or pulling data for quick use         
         elif(year != "All" | tables != None):
 
-            # this will collect data objects for all the tables listed in the tables object
+            # iterates over parameters in json object to find the data needed
+            # assigns dataframes to a particular table name that will fit into the database
             return {k : self.build_url(json_object[k], year) for k in tables}
                       
                 
@@ -70,8 +73,9 @@ class BEA:
 
             # returns the results of the json pull with the specific parameters included 
             return self.format_json(url)
+
         # returns json pull given the specific url string
-        #return self.format_json(parameters)
+        return self.format_json(parameters)
         
 
     def format_json(self, url_end, *select):
