@@ -1,7 +1,8 @@
 import datetime 
 import json
 import pandas as pd
-import requests as rq
+import requests as rqs
+import math
 
 class BLS:
 
@@ -26,45 +27,82 @@ class BLS:
     def build_url(self, object):
 
         # checks the distance between years
-        if((object[2] - object[1]) <= 20):
+        if((object[1] - object[0]) <= 20):
 
-            #
-            return self.format_json(object[1], object[2], object[3])
+            # returns a dictionary filled with columns to a particular key
+            return self.format_json(object[0], object[1], object[2])
 
         else:
 
-            years = self.struct_time((object[2] - object[1]))
+            # gets a list of years from the struct_time method based on the spread of the years 
+            years = self.struct_time((object[1] - object[0]), object[0], object[1])
 
+            # creates an empty dataframe
+            start = pd.DataFrame()
+
+            # pull data from bls in time periods less than equal to 20 
             for year in years:
 
+                # takes the time period and pulls data from that time period
+                end = self.format_json(year[0], year[1], object[2])
+
+                # adds the dataframe end to this dataframe called start through concatenation 
+                start = pd.concat([start, end], axis = 1)
+
+            # gets rid of any duplicates
+            start = start.drop_duplicates(["year", "period", "periodName"])
+            return start
                                    
 
     def format_json(self, begin, end, series):
 
-        dumps = json.dumps({"seriesid" : series, 
+        # formula for pulling data from BLS API
+        dumps = json.dumps({"seriesid" : [series], 
                             "startyear": begin, "endyear" : end, 
                             "registrationkey": self.key})
-        res = rq.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data = data, headers = {"Content-type" : "application/json"})
-        data = json.loads(res.text)
+        res = rqs.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data = dumps, headers = {"Content-type" : "application/json"})
+        data = json.loads(res.text)["Results"]["series"][0]
 
+        # making sure that data exists
+        try:
 
-        if(data != None):
-            for v in range(0, len(data)):
-                box = pd.DataFrame(data[v]['data']).rename(columns = {"value" : data[v]['seriesID']})
-                data = self.struct_time(box)
-                stuff = stuff[["dates", data[v]['seriesID']]]
+            # converts list of dictionaryies into a pandas dataframe
+            info = pd.DataFrame(data["data"]).rename(columns = {"value" : data["seriesID"]})
 
-                if v == 0:
-                    first = stuff
-                else:
-                    first = pd.merge(first, stuff)
+        except KeyError:
+            print("Data not found or program malfunction")   
 
-            return first.sort_values(by = "dates").reset_index(drop = True)
+        return info.sort_values(by = ["year", "period"]).reset_index(drop = True)
 
 
     
-    def struct_time(self, spread):
+    def struct_time(self, time, begin, end):
 
-        
+        # focuses on finding the optimal sectioning for the years given the spread
+        i = 2
+        while True:
+            section = math.floor((end - begin) / i)
 
-        return  
+            if ((section >= 10) & (section <= 20.0)):
+                break
+
+            i += 1
+
+        # focuses on adding to a list the years sectioned given the optimal sectioning
+        times = []
+        for b in range(0, i + 2):
+
+            if b == 0:
+                times.append((begin, begin + section))
+
+            elif times[b - 1][1] == end:
+                break
+
+            elif (end - times[b - 1][1]) < section: 
+                    times.append((times[b - 1][1], end))
+
+            elif b != i:
+                times.append((times[b - 1][1], times[b - 1][1] + section))
+
+        return times
+    

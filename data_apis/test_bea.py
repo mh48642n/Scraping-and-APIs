@@ -105,8 +105,6 @@ class BEA:
         # converts the API into json then into a dataframe getting a table
         data = pd.DataFrame(pull.json()["BEAAPI"]["Results"]["Data"])
 
-  
-
         return self.format_data(data, note)
     
         
